@@ -1,0 +1,12 @@
+{
+  "meta": { "simulated": true, "note": "Material rulant GENERIC de simulare (puteri, mase, lungimi orientative). Nu reprezintă serii sau modele reale de locomotive/vagoane. 'categories' = tipurile de tren care le pot folosi." },
+  "locomotives": [
+    {"id":"LE-5100","name":"Locomotivă electrică 5100 kW","kind":"electric","powerKw":5100,"massT":80,"lengthM":19,"maxSpeed":160,"categories":["ic","ir"]},
+    {"id":"LE-3400","name":"Locomotivă electrică 3400 kW","kind":"electric","powerKw":3400,"massT":84,"lengthM":19,"maxSpeed":120,"categories":["ir","r","marfa"]},
+    {"id":"LD-2100","name":"Locomotivă diesel 2100 kW","kind":"diesel","powerKw":2100,"massT":114,"lengthM":17,"maxSpeed":100,"categories":["r","marfa"]}
+  ],
+  "wagons": [
+    {"id":"VG-P","name":"Vagon de călători","massT":48,"lengthM":26,"maxSpeed":160,"categories":["ic","ir","r"]},
+    {"id":"VG-M","name":"Vagon de marfă (încărcare medie)","massT":60,"lengthM":15,"maxSpeed":100,"categories":["marfa"]}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "meta": { "simulated": true, "note": "Categorii, operatori și comportament de SIMULARE. accel/decel = m/s² maxime; dwell = secunde de oprire (ceas de simulare); stopPolicy: all | hubs | junctions. Numerele de tren sunt generate procedural și nu corespund trenurilor reale." },
+  "categories": [
+    {"type":"ic","prefix":"IC","maxSpeed":160,"class":"ic","desc":"InterCity (Cele mai rapide)","accel":0.7,"decel":0.55,"priority":5,"dwell":40,"stopPolicy":"junctions","wagons":[6,9],"operators":["CFR Călători"]},
+    {"type":"ir","prefix":"IR","maxSpeed":140,"class":"ir","desc":"InterRegio (Rapide)","accel":0.7,"decel":0.55,"priority":4,"dwell":50,"stopPolicy":"hubs","wagons":[5,8],"operators":["CFR Călători"]},
+    {"type":"r","prefix":"R","maxSpeed":120,"class":"r","desc":"Regio (Oprește peste tot)","accel":0.8,"decel":0.7,"priority":3,"dwell":30,"stopPolicy":"all","wagons":[3,5],"operators":["CFR Călători"]},
+    {"type":"marfa","prefix":"M","maxSpeed":80,"class":"marfa","desc":"Marfar (Lent)","accel":0.2,"decel":0.25,"priority":1,"dwell":20,"stopPolicy":"all","wagons":[18,40],"operators":["CFR Marfă"]}
+  ]
+}

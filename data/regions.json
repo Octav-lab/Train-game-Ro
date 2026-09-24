@@ -1,0 +1,14 @@
+{
+  "meta": { "simulated": true, "note": "Regiuni istorice pentru gameplay. Maramureș, Banat și Oltenia nu au încă gări în datele de simulare (vor veni cu extinderea rețelei)." },
+  "regions": [
+    {"id":"Moldova","name":"Moldova","color":"#ff7043"},
+    {"id":"Bucovina","name":"Bucovina","color":"#66bb6a"},
+    {"id":"Transilvania","name":"Transilvania","color":"#42a5f5"},
+    {"id":"Maramureș","name":"Maramureș","color":"#ab47bc"},
+    {"id":"Crișana","name":"Crișana","color":"#ffca28"},
+    {"id":"Banat","name":"Banat","color":"#26c6da"},
+    {"id":"Oltenia","name":"Oltenia","color":"#8d6e63"},
+    {"id":"Muntenia","name":"Muntenia","color":"#ec407a"},
+    {"id":"Dobrogea","name":"Dobrogea","color":"#26a69a"}
+  ]
+}

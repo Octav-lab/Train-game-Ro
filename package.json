@@ -1,0 +1,8 @@
+{
+  "name": "cfr-scada",
+  "version": "0.1.0",
+  "description": "Simulator de dispecerat feroviar inspirat de SCADA (date de simulare)",
+  "type": "module",
+  "scripts": { "start": "npx --yes serve . -l 8080" },
+  "license": "MIT"
+}

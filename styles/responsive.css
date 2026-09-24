@@ -1,0 +1,18 @@
+@media (max-width: 800px) {
+    .menu-title { font-size: 36px; }
+    .menu-subtitle { font-size: 15px; }
+    .sys-info-bar { font-size: 11px; padding: 6px; gap: 8px; justify-content: center; }
+    #radio-panel { top: 60px; left: 5%; width: 90%; background: rgba(10, 30, 10, 0.7); pointer-events: none; }
+    #radio-log { height: 60px; font-size: 10px; padding: 5px; }
+    #timetable-panel { display: none; }
+    .map-zoom-controls { bottom: 45vh; right: 10px; left: auto; }
+    .map-zoom-controls button { width: 40px; height: 40px; font-size: 22px; }
+    #map-control-panel { top: auto; bottom: 0; right: 0; left: 0; width: 100%; box-sizing: border-box; border-radius: 15px 15px 0 0; padding: 12px; border-width: 3px 0 0 0; background: rgba(26, 26, 46, 0.98); margin: 0; }
+    #map-panel-content { max-height: 35vh; overflow-y: auto; padding-right: 5px; }
+    .train-select-btn { font-size: 12px; padding: 8px; }
+    .route-btn { font-size: 13px; padding: 8px 10px; }
+    #toast-container { bottom: auto; top: 160px; right: 8px; left: 8px; align-items: center; pointer-events: none; }
+    .toast { width: 85%; font-size: 10px; padding: 8px; text-align: center; }
+    .station-badge { width: 26px; height: 26px; font-size: 15px; transform: translate(8px, -24px); }
+    .station-badge.broken-alert { width: 46px; height: 46px; font-size: 24px; transform: translate(2px, -36px); }
+}

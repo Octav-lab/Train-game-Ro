@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CFR SCADA - Simulator Trafic Feroviar</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/menu.css">
+    <link rel="stylesheet" href="styles/panels.css">
+    <link rel="stylesheet" href="styles/regions.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+</head>
+<body>
+    <div id="main-menu">
+        <div class="menu-title">CFR SCADA v3.0</div>
+        <div class="menu-subtitle">Sistem Integrat de Control și Dispecerat Feroviar</div>
+        <button class="menu-btn" id="start-btn" disabled>Se încarcă datele...</button>
+        <div id="menu-error"></div>
+        <div style="margin-top: 30px; font-size: 13px; color: #888; text-align: center; max-width: 90%; padding: 0 10px;">
+            Atenție: Preluarea turei implică gestionarea traficului pe Magistrala 500 și secțiile adiacente.<br>
+            Respectați timpii de mers și indicațiile semnalelor BLA.<br>
+            <span style="color:#555">Date de simulare — nu reprezintă neapărat rețeaua feroviară reală.</span>
+        </div>
+    </div>
+
+    <div class="window">
+        <div class="sys-info-bar">
+            <div>Timp: <strong id="sys-time">12:00:00</strong></div>
+            <div>Meteo: <strong id="sys-weather" style="color: #ffeb3b;">☀️ Senin</strong></div>
+            <div><strong id="sys-restr" style="color: #0f0;">Trafic Deschis (100%)</strong></div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Avarii:</span><button class="control-toggle-btn auto" id="minigame-btn" onclick="MapSystem.toggleMinigames()">ON</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>BLA:</span><button class="control-toggle-btn" id="bla-mode-btn" onclick="MapSystem.toggleAutoBLA()">MANUAL</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Rută:</span><button class="control-toggle-btn" id="route-mode-btn" onclick="MapSystem.toggleAutoRoute()">MANUAL</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Sunet:</span><button class="control-toggle-btn auto" id="mute-btn" onclick="MapSystem.toggleMute()">🔊 ON</button>
+            </div>
+            <div class="score-box" title="Trenuri ajunse la destinație">✔ <span id="sys-completed">0</span></div>
+            <div class="score-box" style="color:#ff5555; border-color:#ff5555;" title="Defecțiuni totale">⚠ <span id="sys-breakdowns">0</span></div>
+            <div class="score-box">Punctaj: <span id="sys-score">0</span></div>
+        </div>
+
+        <div id="region-bar"></div>
+
+        <div id="map-wrapper">
+            <div id="radio-panel">
+                <div class="radio-header">📻 FRECVENȚĂ DISPECERAT (CH-7)</div>
+                <div id="radio-log"></div>
+            </div>
+            <div id="timetable-panel">
+                <div class="timetable-header"><span id="tt-title">SITUAȚIE TRENURI (LIVE)</span><span id="active-trains-count">0 Trenuri</span></div>
+                <div id="timetable-list"><div style="padding: 10px; text-align: center; color: #888;">Niciun tren în rețea.</div></div>
+            </div>
+            <div id="map-content">
+                <svg id="path-layer" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none; overflow:visible;"></svg>
+                <svg id="map-svg" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:1; pointer-events:none; overflow:visible;"></svg>
+                <div id="map-elements" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
+            </div>
+            <div class="map-zoom-controls">
+                <button onclick="MapSystem.setZoom(0.15)">+</button>
+                <button onclick="MapSystem.setZoom(-0.15)">-</button>
+            </div>
+            <div id="toast-container"></div>
+            <div id="map-control-panel">
+                <div style="font-weight: bold; color: #0f0; border-bottom: 2px solid #0f0; padding-bottom: 8px; margin-bottom: 10px; font-size:16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Panou Dispecer Gări</span>
+                    <button class="minimize-btn" onclick="toggleDispatcherPanel()">_</button>
+                </div>
+                <div id="map-panel-content">
+                    <div style="color:#aaa; text-align:center; padding: 20px 0;"><em>Trageți de hartă pentru a explora rețeaua.<br>Atingeți o stație pentru a ruta trenurile parcate acolo.</em></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pause-banner">⏸ SIMULARE ÎN PAUZĂ — repari defecțiunea</div>
+    <div id="minigame-overlay">
+        <div id="minigame-box">
+            <h2>⚠ DEFECȚIUNE TEHNICĂ ⚠</h2>
+            <div class="mg-sub" id="minigame-train-info">Trenul XXX este defect pe secție.</div>
+            <div id="minigame-timer-wrap"><div id="minigame-timer-bar"></div></div>
+            <div id="minigame-sequence-display"></div>
+            <div id="minigame-toolgrid"></div>
+            <div id="minigame-progress-wrap"><div id="minigame-progress-bar"></div></div>
+            <div id="minigame-status">Urmărește ordinea sculelor, apoi repet-o!</div>
+            <div id="minigame-stats">Reparate: <strong id="mg-fixed-count">0</strong> | Ratate: <strong id="mg-fail-count">0</strong> | 🔥 Streak: <strong id="mg-streak">0</strong> (record: <strong id="mg-best-streak">0</strong>)</div>
+        </div>
+    </div>
+
+    <script>
+    // Script clasic (nu modul): rulează și pe file://, unde modulele ES sunt blocate.
+    (function () {
+        var msg = 'Nu poți deschide jocul cu dublu-click pe index.html (browserul blochează modulele pe file://).\n' +
+                  'Pornește un server local în folderul proiectului:\n  python3 -m http.server 8080\n(sau: npm start)\napoi deschide http://localhost:8080';
+        function fail() {
+            var b = document.getElementById('start-btn'), e = document.getElementById('menu-error');
+            if (b && b.disabled) { b.innerText = '✖ SERVER LOCAL NECESAR'; e.innerText = msg; }
+        }
+        if (location.protocol === 'file:') window.addEventListener('DOMContentLoaded', fail);
+        else setTimeout(fail, 5000);
+    })();
+    </script>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
