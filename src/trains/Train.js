@@ -20,6 +20,7 @@ export function createTrain({ id, cat, start, dest, path }) {
         currentNode: start, targetNode: null, progress: 0, state: 'IDLE',
         speed: 0, currentSpeedKmh: 0, limiter: '', willStop: false,
         delayMinutes: 0, dwell: 0, held: false, pendingNext: null,
-        breakdownTimer: 0, breakdownNode: null, domElement: null
+        breakdownTimer: 0, breakdownNode: null, domElement: null,
+        blockKeys: [], blockIdx: -1, throatNode: null, throatCleared: true
     };
 }

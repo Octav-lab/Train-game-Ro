@@ -1,6 +1,6 @@
 # CFR SCADA — Simulator de dispecerat feroviar
 
-Simulator/joc de dispecerat inspirat de sisteme SCADA. **Faza 1-4:** refactorizare modulară, date în JSON, regiuni, trenuri cu fizică și AI.
+Simulator/joc de dispecerat inspirat de sisteme SCADA. **Faza 1-5:** refactorizare modulară, date în JSON, regiuni, trenuri cu fizică și AI, blocuri + interlocking + semnale automate.
 
 > Acest proiect este un simulator/joc. Datele marcate ca simulate (`"simulated": true` în `data/*.json`) nu reprezintă neapărat rețeaua sau traficul feroviar real. Harta este schematică, nu GIS.
 
@@ -33,5 +33,11 @@ Bara de sub HUD selectează regiunea: camera face zoom pe ea, restul rețelei se
 - **AI** (`src/trains/TrainAI.js`): frânează la semnal roșu, oprește la peron, așteaptă timpul de oprire, poate fi ținut/eliberat de dispecer, iar ruta poate fi programată în timpul opririi sau anulată. Butonul „Rută AUTO" face trenurile să plece singure pe ruta GPS.
 - Restricțiile temporare se pun în `Game.restrictions[idTronson] = km/h`.
 
+## Semnale, blocuri și interlocking (Faza 5)
+- **Blocuri** (`src/dispatch/BlockSystem.js`): fiecare tronson DUBLU e împărțit în 2 blocuri pe sens (graniță la 48% din tronson); fiecare tronson SIMPLU e UN singur bloc, comun ambelor sensuri, rezervat integral de la plecare — asta exclude structural coliziunea frontală (nu mai e doar detectată după fapt, e prevenită la sursă). Un tren defect ține blocul ocupat până e reparat, blocând realist traficul din spate.
+- **Interlocking** (`src/dispatch/Interlocking.js`): simplificat, fără diagramă reală de macazuri — fiecare gară are o capacitate de trasee simultane prin "gâtuitura" ei (nodurile mari suportă mai multe treceri deodată, cele mici doar una). Un al doilea tren care ar intra în conflict la aceeași gâtuitură primește exact mesajul cerut: „⚠ CONFLICT DE TRASEU — Traseul nu poate fi stabilit. Secțiunea este ocupată.”
+- **Semnale** (3 aspecte): VERDE (bloc liber), GALBEN (bloc liber, dar gâtuitura gării următoare e ocupată — precauție, viteză redusă), ROȘU (bloc ocupat — oprire). În modul BLA AUTOMAT, aspectul se calculează live din ocuparea reală; în modul MANUAL, dispecerul dă liber prin click, dar trecerea reușește doar dacă blocul chiar e liber.
+- Testat automat (fără browser): refuz de plecare pe bloc ocupat, plecare imediată la eliberare, excludere totală pe linie simplă, refuz de traseu prin gâtuitură saturată, aspect galben/verde corect, bloc ținut de tren defect, și 40.000 de cadre de trafic intens automat cu **zero coliziuni**.
+
 ## Roadmap
-Fazele 5-12: regiuni, AI trenuri, blocuri + interlocking, orar, radio contextual, evenimente, scenarii, intro, save/load, polish.
+Fazele 6-12: regiuni, AI trenuri, blocuri + interlocking, orar, radio contextual, evenimente, scenarii, intro, save/load, polish.

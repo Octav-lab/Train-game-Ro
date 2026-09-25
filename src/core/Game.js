@@ -10,12 +10,14 @@ import { DispatcherPanelMixin } from '../ui/DispatcherPanel.js';
 import { TimetablePanelMixin } from '../ui/TimetablePanel.js';
 import { TrainManagerMixin } from '../trains/TrainManager.js';
 import { TrainAIMixin } from '../trains/TrainAI.js';
+import { BlockSystemMixin } from '../dispatch/BlockSystem.js';
+import { InterlockingMixin } from '../dispatch/Interlocking.js';
 import { RegionsMixin } from '../map/Regions.js';
 
 // Game = starea simulării + bucla principală. Restul logicii e în mixin-uri
 // (Object.assign), astfel încât fiecare modul rămâne mic și `this` = Game.
 export const Game = {
-    trains: [], signals: [], lanes: new Map(),
+    trains: [], signals: [], blocks: new Map(), nodeRoutes: new Map(),
     selectedNode: null, selectedTrainId: null, activeRegion: null,
     score: 0, autoBLA: false, autoRoute: false, minigamesEnabled: true, simSpeedMultiplier: 4,
     restrictions: {},   // restricții temporare de viteză { idTronson: km/h } (populate de evenimente)
@@ -81,10 +83,9 @@ export const Game = {
 
         const stationCounts = {};
         for (const key in NODES) stationCounts[key] = 0;
-        this.lanes = this.buildLanes();
-        const ctx = { lanes: this.lanes };
         let needsTimetableUpdate = false;
-        for (const t of this.trains) if (this.stepTrain(t, dtSim, realDt, mt, ctx, stationCounts)) needsTimetableUpdate = true;
+        for (const t of this.trains) if (this.stepTrain(t, dtSim, realDt, mt, null, stationCounts)) needsTimetableUpdate = true;
+        this.refreshSignals();
 
         for (const key in NODES) {
             const badge = document.getElementById(`badge-${key}`);
@@ -99,4 +100,4 @@ export const Game = {
 };
 
 Object.assign(Game, NotificationsMixin, RadioMixin, WeatherMixin, FailuresMixin, RepairMinigameMixin,
-    MapRendererMixin, MapControllerMixin, DispatcherPanelMixin, TimetablePanelMixin, TrainManagerMixin, TrainAIMixin, RegionsMixin);
+    MapRendererMixin, MapControllerMixin, DispatcherPanelMixin, TimetablePanelMixin, TrainManagerMixin, TrainAIMixin, RegionsMixin, BlockSystemMixin, InterlockingMixin);

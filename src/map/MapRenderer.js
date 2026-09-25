@@ -57,8 +57,11 @@ export const MapRendererMixin = {
         sigDiv.onclick = (e) => {
             e.stopPropagation();
             AudioSys.playTone(800, 'sine', 0.1);
-            if (sigData.state === 'RED') { sigData.state = 'GREEN'; sigDiv.classList.remove('red'); sigDiv.classList.add('green'); }
-            else { sigData.state = 'RED'; sigDiv.classList.remove('green'); sigDiv.classList.add('red'); }
+            if (!sigData.isDouble) { this.showToast('Semnal informativ (bloc unic pe linie simplă) — nu necesită liber manual.', 'info'); return; }
+            if (this.autoBLA) { this.showToast('BLA AUTOMAT activ — semnalele se comandă singure din ocuparea blocurilor.', 'warn'); return; }
+            const green = sigData.state !== 'GREEN';
+            sigData.state = green ? 'GREEN' : 'RED';
+            sigDiv.classList.remove('red', 'yellow', 'green'); sigDiv.classList.add(green ? 'green' : 'red');
         };
         document.getElementById('map-elements').appendChild(sigDiv);
     },

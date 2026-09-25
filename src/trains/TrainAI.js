@@ -1,59 +1,66 @@
 import { NODES } from '../core/DataLoader.js';
 import { AudioSys } from '../audio/AudioManager.js';
 import { findEdge, getPath } from '../dispatch/Routing.js';
+import { blockPlan, BLOCK_BOUNDARY } from '../dispatch/BlockSystem.js';
 import { computeTargetSpeed } from './SpeedModel.js';
 import { stopsAt } from './TrainTypes.js';
 
-const SIGNAL_POS = 0.48;
 const ON_TRACK = new Set(['MOVING_TO_SIGNAL', 'MOVING_TO_STATION', 'WAITING_SIGNAL_MID', 'BROKEN']);
+const THROAT_CLEAR_DOUBLE = BLOCK_BOUNDARY;   // pe linie dublă, gâtuitura se eliberează la granița de bloc
+const THROAT_CLEAR_SINGLE = 0.15;              // pe linie simplă (fără graniță de bloc), la o mică distanță de degajare
 
 // AI-ul trenului. Mixin pe Game (`this` = Game). Viteza țintă vine din SpeedModel;
-// aici trenul accelerează/frânează spre ea, respectă semnalul, oprește la peron,
-// așteaptă timpul de oprire și poate fi ținut de dispecer.
+// aici trenul accelerează/frânează spre ea, cere blocuri și trasee (interlocking),
+// respectă semnalul, oprește la peron, așteaptă timpul de oprire și poate fi ținut de dispecer.
 export const TrainAIMixin = {
-    // trenurile aflate pe tronson, grupate pe sens (folosit de SpeedModel pentru distanța față de trenul din față)
-    buildLanes() {
-        const lanes = new Map();
-        for (const t of this.trains) {
-            if (t.suspended || !t.targetNode || !ON_TRACK.has(t.state)) continue;
-            const k = `${t.currentNode}>${t.targetNode}`;
-            if (!lanes.has(k)) lanes.set(k, []);
-            lanes.get(k).push(t);
+    // Încearcă să plece/tranziteze pe tronsonul spre `next`: rezervă primul bloc + gâtuitura
+    // nodului curent. Refuză dacă blocul e ocupat ("BLOC OCUPAT") sau dacă traseul intră în
+    // conflict cu alt tren la aceeași gâtuitură ("CONFLICT DE TRASEU"). Folosită atât pentru
+    // dispecerizare manuală cât și pentru tranzitul automat prin gări mici.
+    attemptDeparture(t, next, opts = {}) {
+        if (this.activeRegion && NODES[next].region !== this.activeRegion) return { ok: false };
+        const edge = findEdge(t.currentNode, next);
+        if (!edge) return { ok: false };
+        const keys = blockPlan(edge, t.currentNode, next);
+        if (!this.reserveBlock(keys[0], t.id)) {
+            if (!opts.silent) this.showToast(`⛔ BLOC OCUPAT: secțiunea ${NODES[t.currentNode].name} → ${NODES[next].name} e ocupată de alt tren.`, 'warn');
+            return { ok: false, reason: 'BLOC' };
         }
-        return lanes;
-    },
-
-    // Pornește trenul pe tronsonul spre `next` (path[pathIndex+1] trebuie să fie `next`)
-    beginEdge(t, next) {
-        t.targetNode = next; t.progress = 0; t.state = 'MOVING_TO_SIGNAL';
-        t.willStop = stopsAt(t, next, t.path[t.pathIndex + 2]);
-        t.domElement.querySelector('.train-dot').classList.remove('waiting');
-        const edge = findEdge(t.currentNode, next);
-        const sig = this.findSignal(edge, t.currentNode, next);
-        if (this.autoBLA && sig && sig.state === 'RED') this.setSignal(sig, true);
-        const k = `${t.currentNode}>${next}`;
-        if (!this.lanes.has(k)) this.lanes.set(k, []);
-        this.lanes.get(k).push(t);
-    },
-
-    // Plecare din stație spre `next`. Returnează false dacă nu se poate (tronson ocupat la ieșire).
-    departTrain(t, next) {
-        const edge = findEdge(t.currentNode, next);
-        if (!edge || (this.activeRegion && NODES[next].region !== this.activeRegion)) { t.pendingNext = null; return false; }
-        const lane = this.lanes.get(`${t.currentNode}>${next}`);
-        if (lane && lane.some(o => o !== t && o.progress < 0.06)) return false;   // tren încă la ieșirea din stație
+        if (!this.reserveThroat(t.currentNode, t.id)) {
+            this.releaseBlock(keys[0], t.id);
+            if (!opts.silent) this.showToast(`⚠ CONFLICT DE TRASEU\nTraseul nu poate fi stabilit.\nSecțiunea este ocupată.`, 'error');
+            return { ok: false, reason: 'INTERLOCKING' };
+        }
         t.pendingNext = null;
         if (t.path[t.pathIndex + 1] !== next) {   // abatere de la ruta GPS: recalculează ruta prin `next`
             const rest = next === t.destFinal ? [next] : getPath(next, t.destFinal, this.activeRegion);
             t.path = [t.currentNode, ...rest]; t.pathIndex = 0;
         }
-        this.beginEdge(t, next);
-        this.radioMsg('Dispecer', `Liber pe secție spre ${NODES[next].name} pentru ${t.id}.`);
-        return true;
+        t.throatNode = t.currentNode; t.throatCleared = false;
+        t.blockKeys = keys; t.blockIdx = 0;
+        t.targetNode = next; t.progress = 0;
+        // linie dublă: fază de apropiere spre semnalul de bloc; linie simplă: blocul e deja
+        // rezervat integral, deci nu mai există punct intermediar de oprire.
+        t.state = edge.double ? 'MOVING_TO_SIGNAL' : 'MOVING_TO_STATION';
+        t.willStop = stopsAt(t, next, t.path[t.pathIndex + 2]);
+        t.domElement.querySelector('.train-dot').classList.remove('waiting');
+        this.radioMsg(opts.transit ? `Mecanic ${t.id}` : 'Dispecer',
+            opts.transit ? `Tranzităm în viteză ${NODES[t.currentNode].name}.` : `Liber pe secție spre ${NODES[next].name} pentru ${t.id}.`);
+        return { ok: true };
+    },
+
+    // Eliberează gâtuitura nodului odată ce trenul a "curățat macazurile" (la granița de bloc,
+    // sau la o mică distanță pe linie simplă) — nodul rămâne liber pentru alte trasee.
+    clearThroat(t) {
+        if (t.throatCleared || !t.throatNode) return;
+        this.releaseThroat(t.throatNode, t.id);
+        t.throatCleared = true;
     },
 
     arriveAtStation(t) {
         const dot = t.domElement.querySelector('.train-dot');
+        this.clearThroat(t);
+        this.releaseTrainBlocks(t);
         t.currentNode = t.targetNode; t.targetNode = null; t.progress = 0;
         if (t.path[t.pathIndex + 1] === t.currentNode) t.pathIndex++;
         if (t.willStop) t.speed = 0;
@@ -67,13 +74,14 @@ export const TrainAIMixin = {
             setTimeout(() => this.spawnTrain(), 2000 + Math.random() * 4000);
         } else {
             const next = t.path[t.pathIndex + 1];
-            if (!t.willStop && next) {
-                this.beginEdge(t, next);
-                this.radioMsg(`Mecanic ${t.id}`, `Tranzităm în viteză ${NODES[t.currentNode].name}.`);
+            const res = (!t.willStop && next) ? this.attemptDeparture(t, next, { transit: true, silent: true }) : { ok: false };
+            if (res.ok) {
+                // tranzit reușit
             } else {
                 t.state = 'IDLE'; t.speed = 0; t.dwell = t.dwellTime;
                 dot.classList.add('waiting'); t.domElement.classList.remove('moving');
-                this.radioMsg(`Mecanic ${t.id}`, `Am oprit în ${NODES[t.currentNode].name}. Așteptăm parcurs.`);
+                if (!t.willStop && next) this.radioMsg(`Mecanic ${t.id}`, `Traseu ocupat la ${NODES[t.currentNode].name}, oprim la peron și așteptăm parcurs liber.`);
+                else this.radioMsg(`Mecanic ${t.id}`, `Am oprit în ${NODES[t.currentNode].name}. Așteptăm parcurs.`);
                 this.updateScore(25);
             }
         }
@@ -88,7 +96,10 @@ export const TrainAIMixin = {
 
         if (t.state === 'CRASHED') {
             t.breakdownTimer += realDt;
-            if (t.breakdownTimer > 5.0) { t.state = 'DONE'; el.remove(); upd = true; }
+            if (t.breakdownTimer > 5.0) {
+                this.clearThroat(t); this.releaseTrainBlocks(t);
+                t.state = 'DONE'; el.remove(); upd = true;
+            }
             return upd;
         }
         if (t.suspended) { if (t.state === 'IDLE') stationCounts[t.currentNode]++; return false; }
@@ -103,7 +114,7 @@ export const TrainAIMixin = {
             } else t.delayMinutes += dtSim / 60;
             if (t.dwell <= 0 && !t.held) {
                 const next = t.pendingNext || (this.autoRoute ? t.path[t.pathIndex + 1] : null);
-                if (next && this.departTrain(t, next)) upd = true;
+                if (next && this.attemptDeparture(t, next, { silent: !!t.pendingNext }).ok) upd = true;
             }
             if (Math.random() < 0.01) upd = true;
             return upd;
@@ -112,6 +123,7 @@ export const TrainAIMixin = {
         el.classList.add('moving');
 
         if (t.state === 'BROKEN') {
+            // trenul defect ține blocul ocupat — realist, blochează traficul din spate până la reparație
             t.speed = t.currentSpeedKmh = 0;
             t.delayMinutes += dtSim / 60;
             if (Math.random() < 0.05) upd = true;
@@ -126,16 +138,19 @@ export const TrainAIMixin = {
         } else {
             const edge = findEdge(t.currentNode, t.targetNode);
             const sig = this.findSignal(edge, t.currentNode, t.targetNode);
-            if (this.autoBLA && sig && sig.state === 'RED' && (t.state === 'MOVING_TO_SIGNAL' || t.state === 'WAITING_SIGNAL_MID')) this.setSignal(sig, true);
+            const nextBlockKey = t.blockKeys && t.blockKeys[1];
 
             if (t.state === 'WAITING_SIGNAL_MID') {
                 t.speed = t.currentSpeedKmh = 0;
                 t.delayMinutes += dtSim / 60;
                 if (Math.random() < 0.05) upd = true;
-                if (sig && sig.state === 'GREEN') {
-                    this.setSignal(sig, false);
+                const canTry = this.autoBLA || (sig && sig.state === 'GREEN');
+                if (canTry && nextBlockKey && this.reserveBlock(nextBlockKey, t.id)) {
+                    this.releaseBlock(t.blockKeys[0], t.id); t.blockIdx = 1;
+                    this.clearThroat(t);
                     t.state = 'MOVING_TO_STATION';
                     dot.classList.remove('waiting');
+                    if (sig && !this.autoBLA) this.setSignal(sig, false);
                     this.radioMsg(`Mecanic ${t.id}`, 'Avem semnal liber. Pornim.');
                     upd = true;
                 }
@@ -144,7 +159,7 @@ export const TrainAIMixin = {
                     this.triggerBreakdown(t);
                     return true;
                 }
-                // dinamică: accelerează / frânează spre viteza țintă
+                // dinamică: accelerează / frânează spre viteza țintă (SpeedModel citește starea semnalului/blocului)
                 const r = computeTargetSpeed(this, t, ctx);
                 t.limiter = r.limiter;
                 const brakeF = this.currentWeather.brake ?? 1;
@@ -154,41 +169,30 @@ export const TrainAIMixin = {
                 t.progress += t.speed * r.rate * mt;
 
                 if (t.state === 'MOVING_TO_SIGNAL') {
-                    if (sig && sig.state === 'GREEN') {
-                        if (t.progress >= SIGNAL_POS) { this.setSignal(sig, false); t.state = 'MOVING_TO_STATION'; }
-                    } else if (t.progress >= SIGNAL_POS || (t.progress >= SIGNAL_POS - 0.004 && t.speed < 12)) {
-                        t.progress = SIGNAL_POS; t.speed = t.currentSpeedKmh = 0;   // oprit la semnal roșu
-                        t.state = 'WAITING_SIGNAL_MID';
-                        dot.classList.add('waiting'); el.classList.remove('moving');
-                        this.radioMsg(`Mecanic ${t.id}`, 'Am oprit la semafor roșu intermediar. Așteptăm verde.');
-                        upd = true;
+                    if (!t.throatCleared && t.progress >= THROAT_CLEAR_DOUBLE) this.clearThroat(t);
+                    if (t.progress >= BLOCK_BOUNDARY) {
+                        const canTry = this.autoBLA || (sig && sig.state === 'GREEN');
+                        if (canTry && nextBlockKey && this.reserveBlock(nextBlockKey, t.id)) {
+                            this.releaseBlock(t.blockKeys[0], t.id); t.blockIdx = 1;
+                            t.state = 'MOVING_TO_STATION';
+                            if (sig && !this.autoBLA) this.setSignal(sig, false);
+                        } else {
+                            t.progress = BLOCK_BOUNDARY; t.speed = t.currentSpeedKmh = 0;   // semnal roșu / bloc ocupat în față
+                            t.state = 'WAITING_SIGNAL_MID';
+                            dot.classList.add('waiting'); el.classList.remove('moving');
+                            this.radioMsg(`Mecanic ${t.id}`, canTry ? 'Am oprit la semnal roșu — bloc ocupat în față. Așteptăm verde.' : 'Am oprit la semnal roșu intermediar. Așteptăm verde.');
+                            upd = true;
+                        }
                     }
                 } else if (t.state === 'MOVING_TO_STATION') {
+                    if (!t.throatCleared) {
+                        const clr = edge.double ? THROAT_CLEAR_DOUBLE : THROAT_CLEAR_SINGLE;
+                        if (t.progress >= clr) this.clearThroat(t);
+                    }
                     if (t.progress >= 1.0 || (t.willStop && 1 - t.progress < 0.004 && t.speed < 15)) {
                         this.arriveAtStation(t);
                         return true;
                     }
-                }
-            }
-        }
-
-        // coliziune frontală pe linie simplă (poziții comparate în același sens al tronsonului)
-        if (t.targetNode && ON_TRACK.has(t.state)) {
-            const e = findEdge(t.currentNode, t.targetNode);
-            if (e && !e.double) {
-                const pos = x => (x.currentNode === e.from ? x.progress : 1 - x.progress);
-                const hit = this.trains.find(o => o !== t && !o.suspended && ON_TRACK.has(o.state) &&
-                    o.currentNode === t.targetNode && o.targetNode === t.currentNode && Math.abs(pos(o) - pos(t)) < 0.03);
-                if (hit) {
-                    [t, hit].forEach(x => {
-                        x.state = 'CRASHED'; x.breakdownTimer = 0; x.speed = x.currentSpeedKmh = 0;
-                        x.domElement.querySelector('.train-dot').className = 'train-dot crashed';
-                        x.domElement.classList.remove('moving');
-                    });
-                    this.showToast(`AVARIE MAJORĂ! Coliziune între ${t.id} și ${hit.id}!`, 'error');
-                    this.radioMsg('Dispecer', '!!! MAYDAY! COLIZIUNE PE SECȚIE !!! Toate garniturile OPRIȚI!');
-                    this.updateScore(-500); AudioSys.error();
-                    return true;
                 }
             }
         }
@@ -208,5 +212,30 @@ export const TrainAIMixin = {
             else { tag.style.display = 'block'; tag.innerText = `${Math.round(t.speed)} km/h · ${t.limiter}`; }
         }
         return upd;
+    },
+
+    // Recalculează aspectul semnalelor automate din ocuparea reală a blocurilor (o dată pe tură de buclă).
+    // În modul MANUAL, dispecerul controlează culoarea prin click; ea rămâne validă doar dacă blocul e liber.
+    refreshSignals() {
+        for (const sig of this.signals) {
+            const el = document.getElementById(sig.id);
+            if (!el) continue;
+            let aspect;
+            if (!sig.isDouble) {
+                // semnal decorativ pe linie simplă: reflectă ocuparea blocului comun, nu blochează trecerea
+                aspect = this.blockFree(`${sig.edgeId}:S`) ? 'GREEN' : 'RED';
+            } else if (this.autoBLA) {
+                const key = `${sig.from}>${sig.to}:1`;
+                if (!this.blockFree(key)) aspect = 'RED';
+                else aspect = this.throatOccupants(sig.to) >= 1 ? 'YELLOW' : 'GREEN';
+            } else {
+                aspect = sig.state || 'RED';   // rămâne cum a fost setat manual
+            }
+            if (sig.state !== aspect) {
+                sig.state = aspect;
+                el.classList.remove('red', 'yellow', 'green');
+                el.classList.add(aspect === 'GREEN' ? 'green' : aspect === 'YELLOW' ? 'yellow' : 'red');
+            }
+        }
     }
 };

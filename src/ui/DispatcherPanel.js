@@ -70,7 +70,7 @@ export const DispatcherPanelMixin = {
         t.pendingNext = nextNode;
         if (t.held) this.showToast(`${t.id}: ruta spre ${NODES[nextNode].name} e programată; trenul e ținut.`, 'info');
         else if (t.dwell > 0) this.showToast(`${t.id}: pleacă spre ${NODES[nextNode].name} după oprirea la peron.`, 'info');
-        else if (!this.departTrain(t, nextNode)) this.showToast(`${t.id}: ieșirea spre ${NODES[nextNode].name} e ocupată, pleacă imediat ce se eliberează.`, 'warn');
+        else if (!this.attemptDeparture(t, nextNode).ok) this.showToast(`${t.id}: traseul spre ${NODES[nextNode].name} nu e liber acum — va pleca imediat ce se eliberează.`, 'warn');
         this.selectedTrainId = null;
         this.updateControlPanel(); this.updateHighlights(); this.updateTimetable();
     },

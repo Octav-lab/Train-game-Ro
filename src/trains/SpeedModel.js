@@ -1,8 +1,11 @@
 import { NODES } from '../core/DataLoader.js';
 import { findEdge } from '../dispatch/Routing.js';
+import { BLOCK_BOUNDARY } from '../dispatch/BlockSystem.js';
 
-// Viteza țintă = min( tren, tronson, restricție temporară, curbă, meteo, semnal, apropiere gară, trafic ).
+// Viteza țintă = min( tren, tronson, restricție temporară, curbă, meteo, semnal/bloc, apropiere gară ).
 // Progresul pe tronson e normalizat 0..1; rata depinde de lungimea (schematică) a tronsonului.
+// Distanța dintre trenuri nu mai e calculată "din ochi": e garantată structural de blocuri
+// (fiecare bloc are un singur ocupant), deci viteza țintă nu mai are nevoie de un termen de trafic separat.
 const K = 0.00075, REF = 700;
 const lenCache = new Map();
 export function edgeLen(edge) {
@@ -22,7 +25,7 @@ export const brakeSpeed = (dist, decel, rate) => dist <= 0 ? 0 : Math.sqrt(2 * d
 
 export function computeTargetSpeed(game, t, c) {
     const edge = findEdge(t.currentNode, t.targetNode);
-    if (!edge) return { kmh: 0, limiter: '?' };
+    if (!edge) return { kmh: 0, limiter: '?', rate: 0 };
     let kmh = t.consist.maxSpeed, lim = 'TREN';
     const apply = (v, name) => { if (v < kmh) { kmh = Math.max(0, v); lim = name; } };
     apply(edge.maxSpeed, 'LINIE');
@@ -32,20 +35,16 @@ export function computeTargetSpeed(game, t, c) {
     if (w < 1) { kmh *= w; lim = 'METEO'; }
 
     const rate = progressRate(edge), dec = t.decel * (game.currentWeather.brake ?? 1);
-    if (t.state === 'MOVING_TO_SIGNAL') {          // semnal roșu în față: frânare până la semnal (viteză de târâre 6 km/h)
+    if (edge.double && t.state === 'MOVING_TO_SIGNAL') {   // semnal de bloc în față: frânare până la graniță
         const sig = game.findSignal(edge, t.currentNode, t.targetNode);
-        if (!(game.autoBLA || (sig && sig.state === 'GREEN'))) apply(Math.max(6, brakeSpeed(0.48 - t.progress, dec, rate)), 'SEMNAL');
+        const nextFree = t.blockKeys && t.blockKeys[1] && game.blockFree(t.blockKeys[1], t.id);
+        if (!(game.autoBLA ? nextFree : (sig && sig.state === 'GREEN')))
+            apply(Math.max(6, brakeSpeed(BLOCK_BOUNDARY - t.progress, dec, rate)), 'SEMNAL');
+        else if (sig && sig.state === 'YELLOW') apply(edge.maxSpeed * 0.6, 'ATENȚIE');
     } else if (t.state === 'MOVING_TO_STATION') {
         const d = 1 - t.progress;
         if (t.willStop) apply(Math.max(8, brakeSpeed(d, dec, rate)), 'STAȚIE');
         else if (d < 0.15) apply(100, 'TRANZIT');
-    }
-    // trafic: nu ajunge din urmă trenul din față (același tronson, același sens), distanță minimă 0.05
-    const lane = c.lanes.get(`${t.currentNode}>${t.targetNode}`);
-    if (lane) {
-        let lead = null;
-        for (const o of lane) if (o !== t && o.progress > t.progress && (!lead || o.progress < lead.progress)) lead = o;
-        if (lead) { const gap = lead.progress - t.progress - 0.05; apply(lead.speed + (gap > 0 ? brakeSpeed(gap, dec, rate) : 0), 'TRAFIC'); }
     }
     return { kmh, limiter: lim, rate };
 }
