@@ -21,6 +21,7 @@ export function createTrain({ id, cat, start, dest, path }) {
         speed: 0, currentSpeedKmh: 0, limiter: '', willStop: false,
         delayMinutes: 0, dwell: 0, held: false, pendingNext: null,
         breakdownTimer: 0, breakdownNode: null, domElement: null,
-        blockKeys: [], blockIdx: -1, throatNode: null, throatCleared: true
+        blockKeys: [], blockIdx: -1, throatNode: null, throatCleared: true,
+        schedule: [], lastRadioReport: 0
     };
 }

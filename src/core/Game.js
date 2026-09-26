@@ -13,6 +13,7 @@ import { TrainAIMixin } from '../trains/TrainAI.js';
 import { BlockSystemMixin } from '../dispatch/BlockSystem.js';
 import { InterlockingMixin } from '../dispatch/Interlocking.js';
 import { RegionsMixin } from '../map/Regions.js';
+import { SchedulePanelMixin } from '../ui/SchedulePanel.js';
 
 // Game = starea simulării + bucla principală. Restul logicii e în mixin-uri
 // (Object.assign), astfel încât fiecare modul rămâne mic și `this` = Game.
@@ -79,7 +80,7 @@ export const Game = {
         if (this.spawnTimer > 600 && this.activeTrainCount() < this.trainCap() && this.trains.length < 60) { this.spawnTimer = 0; this.spawnTrain(); }
 
         this.handleRadioQueue();
-        if (Math.random() < 0.001 * this.simSpeedMultiplier) this.generateRandomChatter();
+        if (Math.random() < 0.001 * this.simSpeedMultiplier) this.generateStatusReports();
 
         const stationCounts = {};
         for (const key in NODES) stationCounts[key] = 0;
@@ -100,4 +101,4 @@ export const Game = {
 };
 
 Object.assign(Game, NotificationsMixin, RadioMixin, WeatherMixin, FailuresMixin, RepairMinigameMixin,
-    MapRendererMixin, MapControllerMixin, DispatcherPanelMixin, TimetablePanelMixin, TrainManagerMixin, TrainAIMixin, RegionsMixin, BlockSystemMixin, InterlockingMixin);
+    MapRendererMixin, MapControllerMixin, DispatcherPanelMixin, TimetablePanelMixin, TrainManagerMixin, TrainAIMixin, RegionsMixin, BlockSystemMixin, InterlockingMixin, SchedulePanelMixin);

@@ -2,6 +2,7 @@ import { NODES } from '../core/DataLoader.js';
 import { getPath, reachableFrom } from '../dispatch/Routing.js';
 import { randomCategory } from './TrainTypes.js';
 import { createTrain } from './Train.js';
+import { buildSchedule } from '../dispatch/Timetable.js';
 
 export const TrainManagerMixin = {
     spawnTrain(forcedId = null, startNode = null) {
@@ -17,6 +18,7 @@ export const TrainManagerMixin = {
         if (!dests.length) return null;
         const dest = dests[Math.floor(Math.random() * dests.length)];
         const train = createTrain({ id, cat, start, dest, path: getPath(start, dest, region) });
+        train.schedule = buildSchedule(train, this.simTime);
 
         const tDiv = document.createElement('div');
         tDiv.className = 'map-train';

@@ -87,6 +87,7 @@ export const DispatcherPanelMixin = {
         AudioSys.dispatch();
         t.held = !t.held;
         this.radioMsg('Dispecer', t.held ? `${t.id}, mențineți poziția. Revin cu instrucțiuni.` : `${t.id}, eliberat. Puteți pleca.`);
+        this.queueReply(`Mecanic ${t.id}`, 'Recepționat.');
         this.updateControlPanel(); this.updateTimetable();
     }
 };

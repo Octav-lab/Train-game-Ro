@@ -2,6 +2,7 @@ import { NODES, REGIONS } from '../core/DataLoader.js';
 import { AudioSys } from '../audio/AudioManager.js';
 import { getPath, reachableFrom } from '../dispatch/Routing.js';
 import { stopsAt } from '../trains/TrainTypes.js';
+import { rebuildSchedule } from '../dispatch/Timetable.js';
 
 // Regiuni: selector, cameră, vizibilitate hartă, adaptarea trenurilor și a traficului.
 // activeRegion === null  =>  toată rețeaua.
@@ -70,9 +71,12 @@ export const RegionsMixin = {
                 if (!hubs.length) return;
                 t.destFinal = hubs[Math.floor(Math.random() * hubs.length)];
             }
+            const anchorIdx = t.targetNode ? t.pathIndex : t.pathIndex;
+            const anchorRow = t.schedule && t.schedule[anchorIdx];
             const p = getPath(base, t.destFinal, region);
             t.path = t.targetNode ? [t.currentNode, ...p] : p;
             t.pathIndex = 0;
+            rebuildSchedule(t, this.simTime, anchorRow);
             if (t.targetNode) t.willStop = stopsAt(t, t.targetNode, t.path[2]);
             if (t.pendingNext && !this.inRegion(t.pendingNext)) t.pendingNext = null;
         });

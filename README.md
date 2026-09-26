@@ -1,6 +1,6 @@
 # CFR SCADA — Simulator de dispecerat feroviar
 
-Simulator/joc de dispecerat inspirat de sisteme SCADA. **Faza 1-5:** refactorizare modulară, date în JSON, regiuni, trenuri cu fizică și AI, blocuri + interlocking + semnale automate.
+Simulator/joc de dispecerat inspirat de sisteme SCADA. **Faza 1-7:** refactorizare modulară, date în JSON, regiuni, trenuri cu fizică și AI, blocuri + interlocking + semnale automate, grafic de circulație (orar), radio contextual.
 
 > Acest proiect este un simulator/joc. Datele marcate ca simulate (`"simulated": true` în `data/*.json`) nu reprezintă neapărat rețeaua sau traficul feroviar real. Harta este schematică, nu GIS.
 
@@ -39,5 +39,20 @@ Bara de sub HUD selectează regiunea: camera face zoom pe ea, restul rețelei se
 - **Semnale** (3 aspecte): VERDE (bloc liber), GALBEN (bloc liber, dar gâtuitura gării următoare e ocupată — precauție, viteză redusă), ROȘU (bloc ocupat — oprire). În modul BLA AUTOMAT, aspectul se calculează live din ocuparea reală; în modul MANUAL, dispecerul dă liber prin click, dar trecerea reușește doar dacă blocul chiar e liber.
 - Testat automat (fără browser): refuz de plecare pe bloc ocupat, plecare imediată la eliberare, excludere totală pe linie simplă, refuz de traseu prin gâtuitură saturată, aspect galben/verde corect, bloc ținut de tren defect, și 40.000 de cadre de trafic intens automat cu **zero coliziuni**.
 
+## Grafic de circulație / orar (Faza 6)
+- **Generare** (`src/dispatch/Timetable.js`): la apariția fiecărui tren, i se construiește un orar cu câte o oprire planificată per gară din traseu, estimat din distanța schematică a hărții și o viteză medie asumată (82% din viteza maximă admisă pe categorie+linie) — marcat explicit ca SIMULARE, nu date reale CFR.
+- **Ore reale:** la fiecare plecare/sosire, ora reală (din ceasul de simulare) se înregistrează în orar și se compară cu cea planificată → întârzierea per oprire, exact ca-n graficul de mers cerut (stație / oră / +Xm).
+- **Recalibrare automată:** `t.delayMinutes` (folosit și la scor) se recalibrează la fiecare sosire din diferența reală față de orar, nu doar din acumulare continuă.
+- **Abateri de rută:** dacă dispecerul trimite trenul pe altă rută decât cea GPS (sau se schimbă regiunea activă), orarul se reconstruiește pentru partea rămasă, păstrând orele reale deja înregistrate la stațiile parcurse — istoricul nu se pierde.
+- **UI:** click pe 📅 lângă orice tren din panoul „Situație trenuri" deschide orarul complet al acelui tren (gări, ore planificate, întârziere per oprire).
+- Testat automat (fără browser): generare corectă pe traseu simplu/multi-hop, recalibrare exactă a întârzierii la sosire, întârziere live vizibilă la un tren ținut, reconstrucție corectă a orarului la abatere de rută (cu păstrarea istoricului), și sincronizare orar↔traseu pe trafic automat susținut.
+
+## Radio contextual (Faza 7)
+- **Fără conversație aleatorie:** vechiul `generateRandomChatter` (saluturi între trenuri, afirmații neverificate de tipul „am liber în față" indiferent de starea reală) a fost eliminat complet.
+- **`generateStatusReports()`** (`src/audio/RadioSystem.js`) alege, din situația REALĂ de pe hartă, ce merită raportat: un tren oprit la semnal roșu de un timp, un tren defect (cu numele real al gării unde s-a oprit), sau un tren cu întârziere reală ≥3 minute (citează exact `t.delayMinutes`, calculat din orar — Faza 6). Fiecare tren are un cooldown de 25s simulate ca să nu repete raportul în fiecare tură de buclă.
+- **Refuzurile de bloc/interlocking (Faza 5) generează acum și schimb radio**, nu doar toast: mecanicul întreabă, dispecerul răspunde negativ și motivează („secția e ocupată" / „traseu ocupat la X"). Reîncercările automate silențioase (retry pe rută programată) nu spamează radioul.
+- **Confirmări „Recepționat"** programate (cu mică întârziere, prin `queueReply`) la ținere/eliberare tren, la clearance de plecare și la raportul de întârziere.
+- Testat automat (fără browser): eliminarea conversației aleatorii, raport de întârziere cu valoarea exactă, raport de semnal roșu cu cooldown funcțional, raport de defecțiune cu gara reală, schimb radio la refuz de bloc și de interlocking, absența spam-ului la reîncercări silențioase, și confirmarea "Recepționat" la hold.
+
 ## Roadmap
-Fazele 6-12: regiuni, AI trenuri, blocuri + interlocking, orar, radio contextual, evenimente, scenarii, intro, save/load, polish.
+Fazele 8-12: regiuni, AI trenuri, blocuri + interlocking, orar, radio contextual, evenimente, scenarii, intro, save/load, polish.

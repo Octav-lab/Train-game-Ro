@@ -2,6 +2,7 @@ import { NODES } from '../core/DataLoader.js';
 import { AudioSys } from '../audio/AudioManager.js';
 import { findEdge, getPath } from '../dispatch/Routing.js';
 import { blockPlan, BLOCK_BOUNDARY } from '../dispatch/BlockSystem.js';
+import { rebuildSchedule, recordDeparture, recordArrival } from '../dispatch/Timetable.js';
 import { computeTargetSpeed } from './SpeedModel.js';
 import { stopsAt } from './TrainTypes.js';
 
@@ -23,18 +24,28 @@ export const TrainAIMixin = {
         if (!edge) return { ok: false };
         const keys = blockPlan(edge, t.currentNode, next);
         if (!this.reserveBlock(keys[0], t.id)) {
-            if (!opts.silent) this.showToast(`⛔ BLOC OCUPAT: secțiunea ${NODES[t.currentNode].name} → ${NODES[next].name} e ocupată de alt tren.`, 'warn');
+            if (!opts.silent) {
+                this.showToast(`⛔ BLOC OCUPAT: secțiunea ${NODES[t.currentNode].name} → ${NODES[next].name} e ocupată de alt tren.`, 'warn');
+                this.radioMsg(`Mecanic ${t.id}`, `Dispecerat, avem liber spre ${NODES[next].name}?`);
+                this.queueReply('Dispecer', `${t.id}, negativ, secția e ocupată. Mențineți poziția.`);
+            }
             return { ok: false, reason: 'BLOC' };
         }
         if (!this.reserveThroat(t.currentNode, t.id)) {
             this.releaseBlock(keys[0], t.id);
-            if (!opts.silent) this.showToast(`⚠ CONFLICT DE TRASEU\nTraseul nu poate fi stabilit.\nSecțiunea este ocupată.`, 'error');
+            if (!opts.silent) {
+                this.showToast(`⚠ CONFLICT DE TRASEU\nTraseul nu poate fi stabilit.\nSecțiunea este ocupată.`, 'error');
+                this.radioMsg(`Mecanic ${t.id}`, `Dispecerat, solicit liber spre ${NODES[next].name}.`);
+                this.queueReply('Dispecer', `${t.id}, negativ, traseu ocupat la ${NODES[t.currentNode].name}. Reveniți în așteptare.`);
+            }
             return { ok: false, reason: 'INTERLOCKING' };
         }
         t.pendingNext = null;
         if (t.path[t.pathIndex + 1] !== next) {   // abatere de la ruta GPS: recalculează ruta prin `next`
+            const anchorRow = t.schedule && t.schedule[t.pathIndex];
             const rest = next === t.destFinal ? [next] : getPath(next, t.destFinal, this.activeRegion);
             t.path = [t.currentNode, ...rest]; t.pathIndex = 0;
+            rebuildSchedule(t, this.simTime, anchorRow);
         }
         t.throatNode = t.currentNode; t.throatCleared = false;
         t.blockKeys = keys; t.blockIdx = 0;
@@ -43,9 +54,11 @@ export const TrainAIMixin = {
         // rezervat integral, deci nu mai există punct intermediar de oprire.
         t.state = edge.double ? 'MOVING_TO_SIGNAL' : 'MOVING_TO_STATION';
         t.willStop = stopsAt(t, next, t.path[t.pathIndex + 2]);
+        recordDeparture(t, this.simTime);
         t.domElement.querySelector('.train-dot').classList.remove('waiting');
         this.radioMsg(opts.transit ? `Mecanic ${t.id}` : 'Dispecer',
             opts.transit ? `Tranzităm în viteză ${NODES[t.currentNode].name}.` : `Liber pe secție spre ${NODES[next].name} pentru ${t.id}.`);
+        if (!opts.transit && !opts.silent) this.queueReply(`Mecanic ${t.id}`, 'Recepționat, plecăm.');
         return { ok: true };
     },
 
@@ -63,6 +76,7 @@ export const TrainAIMixin = {
         this.releaseTrainBlocks(t);
         t.currentNode = t.targetNode; t.targetNode = null; t.progress = 0;
         if (t.path[t.pathIndex + 1] === t.currentNode) t.pathIndex++;
+        recordArrival(t, this.simTime);
         if (t.willStop) t.speed = 0;
         if (t.currentNode === t.destFinal) {
             this.radioMsg(`Mecanic ${t.id}`, `Am ajuns la destinația finală ${NODES[t.currentNode].name}.`);
