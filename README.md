@@ -1,6 +1,6 @@
 # CFR SCADA — Simulator de dispecerat feroviar
 
-Simulator/joc de dispecerat inspirat de sisteme SCADA. **Faza 1-7:** refactorizare modulară, date în JSON, regiuni, trenuri cu fizică și AI, blocuri + interlocking + semnale automate, grafic de circulație (orar), radio contextual.
+Simulator/joc de dispecerat inspirat de sisteme SCADA. **Faza 1-8:** refactorizare modulară, date în JSON, regiuni, trenuri cu fizică și AI, blocuri + interlocking + semnale automate, grafic de circulație (orar), radio contextual, evenimente dinamice.
 
 > Acest proiect este un simulator/joc. Datele marcate ca simulate (`"simulated": true` în `data/*.json`) nu reprezintă neapărat rețeaua sau traficul feroviar real. Harta este schematică, nu GIS.
 
@@ -54,5 +54,16 @@ Bara de sub HUD selectează regiunea: camera face zoom pe ea, restul rețelei se
 - **Confirmări „Recepționat"** programate (cu mică întârziere, prin `queueReply`) la ținere/eliberare tren, la clearance de plecare și la raportul de întârziere.
 - Testat automat (fără browser): eliminarea conversației aleatorii, raport de întârziere cu valoarea exactă, raport de semnal roșu cu cooldown funcțional, raport de defecțiune cu gara reală, schimb radio la refuz de bloc și de interlocking, absența spam-ului la reîncercări silențioase, și confirmarea "Recepționat" la hold.
 
+## Evenimente dinamice (Faza 8)
+- **`src/events/RandomEvents.js`** orchestrează 5 tipuri de incidente, fiecare cu efect REAL în simulare, nu doar text:
+  - **Semnal defect** — un semnal rămâne blocat pe roșu (aspect `FAILED`, gri-pulsatoriu) indiferent de BLA automat sau manual; niciun tren nu poate trece până la reparație.
+  - **Macaz indisponibil** — capacitatea gâtuiturii unei gări (Faza 5) scade temporar la 0; dispecerul nu mai poate stabili niciun traseu nou prin acel nod.
+  - **Linie închisă (lucrări)** — un tronson devine complet indisponibil pentru plecări noi; rutarea (GPS, abateri, spawn de trenuri noi) ocolește automat tronsonul închis (`Routing.js` acceptă acum un set de tronsoane de evitat), marcat vizual cu roșu punctat pe hartă.
+  - **Cădere de alimentare** — afectează DOAR trenurile cu tracțiune electrică (câmpul `kind` din `rolling-stock.json`, expus acum ca `t.traction`), care circulă la pas (~5 km/h); trenurile diesel nu sunt afectate pe aceeași secție.
+  - **Obstacol pe linie** — restricție severă de viteză temporară, refolosind direct mecanismul `Game.restrictions` din Faza 4.
+- Fiecare eveniment se rezolvă automat după un timp (`tickEvents`), cu toast + mesaj radio la declanșare și la rezolvare; un indicator 🚧 în HUD arată câte incidente sunt active.
+- Testat automat (fără browser): fiecare tip de eveniment blochează exact ce trebuie (și nimic altceva), efectele dispar complet la expirare, rutarea ocolește structural liniile închise, tracțiunea electrică vs. diesel reacționează diferit la pana de curent, și traficul automat lung rămâne stabil cu evenimente reale declanșându-se pe parcurs.
+- Pe parcursul testării am găsit și corectat un bug real: după repararea unui semnal defect în modul MANUAL, starea semnalului rămânea blocată pe `FAILED` la nesfârșit (deoarece modul manual doar „ecouează" ultima stare cunoscută) — corectat să revină explicit pe roșu la reparație.
+
 ## Roadmap
-Fazele 8-12: regiuni, AI trenuri, blocuri + interlocking, orar, radio contextual, evenimente, scenarii, intro, save/load, polish.
+Fazele 9-12: regiuni, AI trenuri, blocuri + interlocking, orar, radio contextual, evenimente, scenarii, intro, save/load, polish.

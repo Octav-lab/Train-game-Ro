@@ -14,11 +14,17 @@ export function nodeCapacity(node) {
 }
 
 export const InterlockingMixin = {
+    // Capacitatea efectivă ține cont de eventualele defecțiuni de macaz (Faza 8), care
+    // reduc temporar câte trasee simultane poate susține gâtuitura unei gări.
+    effectiveCapacity(node) {
+        const override = this.nodeCapacityOverride.get(node);
+        return override != null ? override : nodeCapacity(node);
+    },
     reserveThroat(node, trainId) {
         let set = this.nodeRoutes.get(node);
         if (!set) { set = new Set(); this.nodeRoutes.set(node, set); }
         if (set.has(trainId)) return true;
-        if (set.size >= nodeCapacity(node)) return false;
+        if (set.size >= this.effectiveCapacity(node)) return false;
         set.add(trainId);
         return true;
     },

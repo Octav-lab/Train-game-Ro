@@ -14,6 +14,7 @@ import { BlockSystemMixin } from '../dispatch/BlockSystem.js';
 import { InterlockingMixin } from '../dispatch/Interlocking.js';
 import { RegionsMixin } from '../map/Regions.js';
 import { SchedulePanelMixin } from '../ui/SchedulePanel.js';
+import { RandomEventsMixin } from '../events/RandomEvents.js';
 
 // Game = starea simulării + bucla principală. Restul logicii e în mixin-uri
 // (Object.assign), astfel încât fiecare modul rămâne mic și `this` = Game.
@@ -22,6 +23,7 @@ export const Game = {
     selectedNode: null, selectedTrainId: null, activeRegion: null,
     score: 0, autoBLA: false, autoRoute: false, minigamesEnabled: true, simSpeedMultiplier: 4,
     restrictions: {},   // restricții temporare de viteză { idTronson: km/h } (populate de evenimente)
+    activeEvents: [], closedEdges: new Set(), powerOutageEdges: new Set(), nodeCapacityOverride: new Map(), eventTimer: 0,
     lastTime: 0, spawnTimer: 0, animReq: null,
     simTime: new Date(), weatherTimer: 0, currentWeather: { id: 'CLEAR', speed: 1.0, brake: 1.0 },
     mapOffsetX: -3200, mapOffsetY: -3500, zoom: 0.35,
@@ -75,6 +77,7 @@ export const Game = {
         document.getElementById('map-wrapper').classList.toggle('night-mode', hour >= 20 || hour < 6);
 
         this.weatherTimer += dtSim;
+        this.tickEvents(dtSim);
         if (this.weatherTimer > 3600) { this.weatherTimer = 0; this.changeWeather(); }
         this.spawnTimer += dtSim;
         if (this.spawnTimer > 600 && this.activeTrainCount() < this.trainCap() && this.trains.length < 60) { this.spawnTimer = 0; this.spawnTrain(); }
@@ -101,4 +104,4 @@ export const Game = {
 };
 
 Object.assign(Game, NotificationsMixin, RadioMixin, WeatherMixin, FailuresMixin, RepairMinigameMixin,
-    MapRendererMixin, MapControllerMixin, DispatcherPanelMixin, TimetablePanelMixin, TrainManagerMixin, TrainAIMixin, RegionsMixin, BlockSystemMixin, InterlockingMixin, SchedulePanelMixin);
+    MapRendererMixin, MapControllerMixin, DispatcherPanelMixin, TimetablePanelMixin, TrainManagerMixin, TrainAIMixin, RegionsMixin, BlockSystemMixin, InterlockingMixin, SchedulePanelMixin, RandomEventsMixin);

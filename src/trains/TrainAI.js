@@ -22,6 +22,14 @@ export const TrainAIMixin = {
         if (this.activeRegion && NODES[next].region !== this.activeRegion) return { ok: false };
         const edge = findEdge(t.currentNode, next);
         if (!edge) return { ok: false };
+        if (this.closedEdges.has(edge.id)) {
+            if (!opts.silent) {
+                this.showToast(`🚧 LINIE ÎNCHISĂ: secțiunea ${NODES[t.currentNode].name} → ${NODES[next].name} e închisă (lucrări).`, 'warn');
+                this.radioMsg(`Mecanic ${t.id}`, `Dispecerat, avem liber spre ${NODES[next].name}?`);
+                this.queueReply('Dispecer', `${t.id}, negativ, linie închisă pentru lucrări. Alegeți altă rută.`);
+            }
+            return { ok: false, reason: 'LINIE_INCHISA' };
+        }
         const keys = blockPlan(edge, t.currentNode, next);
         if (!this.reserveBlock(keys[0], t.id)) {
             if (!opts.silent) {
@@ -43,7 +51,7 @@ export const TrainAIMixin = {
         t.pendingNext = null;
         if (t.path[t.pathIndex + 1] !== next) {   // abatere de la ruta GPS: recalculează ruta prin `next`
             const anchorRow = t.schedule && t.schedule[t.pathIndex];
-            const rest = next === t.destFinal ? [next] : getPath(next, t.destFinal, this.activeRegion);
+            const rest = next === t.destFinal ? [next] : getPath(next, t.destFinal, this.activeRegion, this.closedEdges);
             t.path = [t.currentNode, ...rest]; t.pathIndex = 0;
             rebuildSchedule(t, this.simTime, anchorRow);
         }
@@ -158,7 +166,7 @@ export const TrainAIMixin = {
                 t.speed = t.currentSpeedKmh = 0;
                 t.delayMinutes += dtSim / 60;
                 if (Math.random() < 0.05) upd = true;
-                const canTry = this.autoBLA || (sig && sig.state === 'GREEN');
+                const canTry = !(sig && sig.failed) && (this.autoBLA || (sig && sig.state === 'GREEN'));
                 if (canTry && nextBlockKey && this.reserveBlock(nextBlockKey, t.id)) {
                     this.releaseBlock(t.blockKeys[0], t.id); t.blockIdx = 1;
                     this.clearThroat(t);
@@ -185,7 +193,7 @@ export const TrainAIMixin = {
                 if (t.state === 'MOVING_TO_SIGNAL') {
                     if (!t.throatCleared && t.progress >= THROAT_CLEAR_DOUBLE) this.clearThroat(t);
                     if (t.progress >= BLOCK_BOUNDARY) {
-                        const canTry = this.autoBLA || (sig && sig.state === 'GREEN');
+                        const canTry = !(sig && sig.failed) && (this.autoBLA || (sig && sig.state === 'GREEN'));
                         if (canTry && nextBlockKey && this.reserveBlock(nextBlockKey, t.id)) {
                             this.releaseBlock(t.blockKeys[0], t.id); t.blockIdx = 1;
                             t.state = 'MOVING_TO_STATION';
@@ -235,7 +243,9 @@ export const TrainAIMixin = {
             const el = document.getElementById(sig.id);
             if (!el) continue;
             let aspect;
-            if (!sig.isDouble) {
+            if (sig.failed) {
+                aspect = 'FAILED';   // defecțiune (Faza 8): blocat pe roșu, indiferent de mod sau ocupare
+            } else if (!sig.isDouble) {
                 // semnal decorativ pe linie simplă: reflectă ocuparea blocului comun, nu blochează trecerea
                 aspect = this.blockFree(`${sig.edgeId}:S`) ? 'GREEN' : 'RED';
             } else if (this.autoBLA) {
@@ -247,8 +257,8 @@ export const TrainAIMixin = {
             }
             if (sig.state !== aspect) {
                 sig.state = aspect;
-                el.classList.remove('red', 'yellow', 'green');
-                el.classList.add(aspect === 'GREEN' ? 'green' : aspect === 'YELLOW' ? 'yellow' : 'red');
+                el.classList.remove('red', 'yellow', 'green', 'failed');
+                el.classList.add(aspect === 'GREEN' ? 'green' : aspect === 'YELLOW' ? 'yellow' : aspect === 'FAILED' ? 'failed' : 'red');
             }
         }
     }

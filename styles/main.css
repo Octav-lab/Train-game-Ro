@@ -115,3 +115,12 @@ body {
     z-index: 100; pointer-events: none; animation: floatUp 4s forwards; white-space: nowrap; box-shadow: 0 4px 8px rgba(0,0,0,0.5);
 }
 @keyframes floatUp { 0% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -80px); opacity: 0; } }
+
+/* Evenimente dinamice (Faza 8) */
+.map-signal.failed { background: #666; border-color: #ffeb3b; animation: signalFailedBlink 0.7s infinite; box-shadow: 0 0 8px #ffeb3b; }
+@keyframes signalFailedBlink { 50% { background: #333; } }
+.map-station.points-failed { animation: pointsFailedPulse 0.8s infinite; }
+@keyframes pointsFailedPulse { 50% { box-shadow: 0 0 18px 6px #ff9800; } }
+line.line-closed { stroke: #ff3333 !important; stroke-dasharray: 14,8; }
+line.line-outage { stroke: #ffeb3b !important; stroke-dasharray: 4,6; }
+line.line-obstacle { stroke: #ff9800 !important; stroke-dasharray: 2,6; }

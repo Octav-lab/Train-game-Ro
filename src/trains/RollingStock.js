@@ -13,7 +13,7 @@ export function buildConsist(cat) {
     const massT = loco.massT + wagon.massT * n;
     const accel = Math.min(cat.accel, clamp(0.06 * loco.powerKw / massT + 0.03, 0.06, 1.0));
     return {
-        loco: loco.name, wagon: wagon.name, wagons: n,
+        loco: loco.name, wagon: wagon.name, wagons: n, kind: loco.kind,
         lengthM: Math.round(loco.lengthM + wagon.lengthM * n), massT: Math.round(massT),
         maxSpeed: Math.min(cat.maxSpeed, loco.maxSpeed, wagon.maxSpeed),
         accelMs2: +accel.toFixed(2), text: `${n} × ${wagon.name}`

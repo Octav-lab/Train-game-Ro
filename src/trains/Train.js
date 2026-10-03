@@ -14,7 +14,7 @@ export function createTrain({ id, cat, start, dest, path }) {
     return {
         id, category: cat.prefix, cat, simulated: true, operator: pick(cat.operators),
         origin: start, destFinal: dest, path, pathIndex: 0,
-        consist, locomotive: consist.loco, lengthM: consist.lengthM, massT: consist.massT,
+        consist, locomotive: consist.loco, lengthM: consist.lengthM, massT: consist.massT, traction: consist.kind,
         accel: consist.accelMs2 * ACCEL_UNIT, decel: cat.decel * ACCEL_UNIT,
         priority: cat.priority, dwellTime: cat.dwell,
         currentNode: start, targetNode: null, progress: 0, state: 'IDLE',

@@ -14,10 +14,10 @@ export const TrainManagerMixin = {
         const hubs = Object.keys(NODES).filter(k => NODES[k].hub && (!region || NODES[k].region === region));
         const start = (startNode && (!region || NODES[startNode].region === region)) ? startNode : hubs[Math.floor(Math.random() * hubs.length)];
         if (!start) return null;
-        const dests = [...reachableFrom(start, region)].filter(n => NODES[n].hub && n !== start);
+        const dests = [...reachableFrom(start, region, this.closedEdges)].filter(n => NODES[n].hub && n !== start);
         if (!dests.length) return null;
         const dest = dests[Math.floor(Math.random() * dests.length)];
-        const train = createTrain({ id, cat, start, dest, path: getPath(start, dest, region) });
+        const train = createTrain({ id, cat, start, dest, path: getPath(start, dest, region, this.closedEdges) });
         train.schedule = buildSchedule(train, this.simTime);
 
         const tDiv = document.createElement('div');

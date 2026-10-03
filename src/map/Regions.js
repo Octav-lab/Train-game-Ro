@@ -73,7 +73,7 @@ export const RegionsMixin = {
             }
             const anchorIdx = t.targetNode ? t.pathIndex : t.pathIndex;
             const anchorRow = t.schedule && t.schedule[anchorIdx];
-            const p = getPath(base, t.destFinal, region);
+            const p = getPath(base, t.destFinal, region, this.closedEdges);
             t.path = t.targetNode ? [t.currentNode, ...p] : p;
             t.pathIndex = 0;
             rebuildSchedule(t, this.simTime, anchorRow);

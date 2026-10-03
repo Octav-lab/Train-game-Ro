@@ -33,13 +33,14 @@ export function computeTargetSpeed(game, t, c) {
     const cv = curveLimit(edge); if (cv) apply(cv, 'CURBĂ');
     const w = game.currentWeather.speed;
     if (w < 1) { kmh *= w; lim = 'METEO'; }
+    if (game.powerOutageEdges.has(edge.id) && t.traction === 'electric') apply(5, 'PANĂ CURENT');
 
     const rate = progressRate(edge), dec = t.decel * (game.currentWeather.brake ?? 1);
     if (edge.double && t.state === 'MOVING_TO_SIGNAL') {   // semnal de bloc în față: frânare până la graniță
         const sig = game.findSignal(edge, t.currentNode, t.targetNode);
         const nextFree = t.blockKeys && t.blockKeys[1] && game.blockFree(t.blockKeys[1], t.id);
-        if (!(game.autoBLA ? nextFree : (sig && sig.state === 'GREEN')))
-            apply(Math.max(6, brakeSpeed(BLOCK_BOUNDARY - t.progress, dec, rate)), 'SEMNAL');
+        const canPass = !(sig && sig.failed) && (game.autoBLA ? nextFree : (sig && sig.state === 'GREEN'));
+        if (!canPass) apply(Math.max(6, brakeSpeed(BLOCK_BOUNDARY - t.progress, dec, rate)), sig && sig.failed ? 'SEMNAL DEFECT' : 'SEMNAL');
         else if (sig && sig.state === 'YELLOW') apply(edge.maxSpeed * 0.6, 'ATENȚIE');
     } else if (t.state === 'MOVING_TO_STATION') {
         const d = 1 - t.progress;

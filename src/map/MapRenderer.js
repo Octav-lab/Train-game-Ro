@@ -57,6 +57,7 @@ export const MapRendererMixin = {
         sigDiv.onclick = (e) => {
             e.stopPropagation();
             AudioSys.playTone(800, 'sine', 0.1);
+            if (sigData.failed) { this.showToast('Semnal DEFECT — blocat pe roșu până la remedierea incidentului.', 'error'); return; }
             if (!sigData.isDouble) { this.showToast('Semnal informativ (bloc unic pe linie simplă) — nu necesită liber manual.', 'info'); return; }
             if (this.autoBLA) { this.showToast('BLA AUTOMAT activ — semnalele se comandă singure din ocuparea blocurilor.', 'warn'); return; }
             const green = sigData.state !== 'GREEN';
